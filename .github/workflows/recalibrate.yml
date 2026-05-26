@@ -1,0 +1,75 @@
+# Quarterly recalibration of v2's isotonic models.
+#
+# The current calibration.json was fit on the corpus as of late April.
+# As the corpus grows daily, the gap between "training distribution"
+# and "current state" widens. Re-running calibration quarterly keeps
+# the displayed Brier/ECE numbers honest.
+#
+# This workflow re-ingests fresh data, fits new isotonic models, and
+# commits the updated calibration.json back. publish.py picks it up
+# automatically on the next daily run.
+#
+# Cadence: first day of each quarter (Jan, Apr, Jul, Oct), 22:00 UTC.
+# Doesn't matter which day-of-week — runs once per quarter regardless.
+#
+# Per CLAUDE.md: "re-run python -m src.calibration quarterly or after
+# any structural change to encoder/retrieval."
+
+name: recalibrate-quarterly
+
+on:
+  schedule:
+    # 22:00 UTC on the 1st of Jan, Apr, Jul, Oct.
+    - cron: '0 22 1 1,4,7,10 *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recalibrate
+  cancel-in-progress: false  # Don't cancel a refit in flight.
+
+jobs:
+  recalibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Calibration CV is the slow step; ~5-10 min.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -v '^jupyter' requirements.txt > requirements.ci.txt
+          pip install -r requirements.ci.txt
+
+      - name: Ingest fresh market data (rebuild corpus)
+        run: python -m src.ingest
+
+      - name: Re-fit isotonic calibration with time-series CV
+        # Full fit (not --evaluate-only). Writes data/calibration.json
+        # with new models + new OOS skill/ECE numbers.
+        run: python -m src.calibration | tee calibration_report.txt
+
+      - name: Commit new calibration.json
+        run: |
+          git config user.name  "mtg-v2-bot"
+          git config user.email "mtg-v2-bot@users.noreply.github.com"
+          git add data/calibration.json
+          if git diff --staged --quiet; then
+            echo "Calibration unchanged — nothing to commit."
+          else
+            REPORT=$(tail -n 20 calibration_report.txt)
+            git commit -m "recalibrate: quarterly refit $(date -u +%Y-%m-%d)
+
+            $REPORT"
+            git push
+          fi

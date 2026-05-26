@@ -90,8 +90,19 @@ visible in the artifact's `calibration` block) or explicitly withheld with
 reason. The displayed numbers are now defensible as descriptive empirical
 frequencies, not implicit forecasts.
 
-Recalibration cadence: re-run `python -m src.calibration` quarterly or after
-any structural change to encoder/retrieval. Static fit is fine in between.
+Recalibration cadence: automated via `.github/workflows/recalibrate.yml`
+(runs first of Jan/Apr/Jul/Oct, 22:00 UTC). Static fit between cron
+firings. Also run manually after any structural change to encoder/
+retrieval.
+
+Drift detection: weekly via `.github/workflows/drift-check.yml`
+(Sundays 23:00 UTC). Re-runs the same time-series CV on the current
+corpus and compares to the OOS skill/ECE numbers baked into
+`data/calibration.json`. If any prediction's calibrated skill has
+degraded by >=0.05, ECE has risen by >=0.05, or absolute floors are
+breached (skill < -0.25 or ECE > 0.20), opens a GitHub Issue labeled
+`drift`. Thresholds live in `src/drift.py`. Remediation: trigger
+`recalibrate-quarterly` manually from the Actions tab.
 
 ### Out of scope for v2 (deliberate)
 

@@ -1,0 +1,139 @@
+# Weekly drift detector for v2's calibration.
+#
+# Re-runs the same time-series CV that produced data/calibration.json
+# on the current (extended) corpus, and compares fresh OOS skill/ECE
+# numbers to the ones baked into calibration.json.
+#
+# If any prediction has drifted past the thresholds in src/drift.py,
+# this workflow opens (or updates) a GitHub Issue labeled `drift` with
+# the full report. Otherwise it exits clean.
+#
+# Cadence: Sundays 23:00 UTC (Monday 09:00 AEST). Lets us start the
+# week knowing whether anything has decayed.
+#
+# Remediation when drift fires: trigger the recalibrate-quarterly
+# workflow manually (Actions tab → Run workflow). It'll refit on the
+# current corpus and close the gap. The drift issue can then be
+# closed by hand.
+
+name: drift-check-weekly
+
+on:
+  schedule:
+    - cron: '0 23 * * 0'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: drift-check
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -v '^jupyter' requirements.txt > requirements.ci.txt
+          pip install -r requirements.ci.txt
+
+      - name: Ingest fresh market data
+        run: python -m src.ingest
+
+      - name: Run drift check
+        id: drift
+        # Exit 0 = ok, 1 = drift detected, 2 = no baseline.
+        # `|| true` so the step itself doesn't fail the job; we branch
+        # on the exit code in the next step.
+        run: |
+          set +e
+          python -m src.drift > drift_report.json
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+          cat drift_report.json
+
+      - name: File drift issue if detected
+        if: steps.drift.outputs.exitcode == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          # Ensure the `drift` label exists. `|| true` so we don't fail
+          # the step if it already exists.
+          gh label create drift \
+            --description "Calibration drift detected by drift-check workflow" \
+            --color "d93f0b" 2>/dev/null || true
+
+          # Build issue body from drift report.
+          BODY=$(python3 <<'PY'
+          import json
+          r = json.load(open("drift_report.json"))
+          lines = []
+          lines.append(f"**Status:** {r['status']}")
+          lines.append(f"**Baseline fit at:** {r.get('baseline_fit_at', 'unknown')}")
+          lines.append(f"**Current corpus size:** {r['current_n_pairs']} pairs")
+          lines.append("")
+          lines.append("## Predictions flagged")
+          lines.append("")
+          for issue in r["issues"]:
+              lines.append(f"### `{issue['prediction']}` — {issue['label']}")
+              cur = issue["current"]
+              base = issue["baseline"]
+              lines.append("")
+              lines.append("| metric | baseline | current |")
+              lines.append("|---|---|---|")
+              lines.append(f"| skill_calibrated | {base.get('skill_calibrated')} | {cur.get('skill_calibrated')} |")
+              lines.append(f"| ece_calibrated   | {base.get('ece_calibrated')}   | {cur.get('ece_calibrated')}   |")
+              lines.append(f"| n_oos_pairs      | {base.get('n_oos_pairs')}      | {cur.get('n_oos_pairs')}      |")
+              lines.append("")
+              lines.append("**Flags:**")
+              for f in issue["flags"]:
+                  lines.append(f"- {f}")
+              lines.append("")
+          lines.append("---")
+          lines.append("")
+          lines.append("**Fix:** trigger the `recalibrate-quarterly` workflow manually "
+                       "(Actions tab → recalibrate-quarterly → Run workflow). That refits "
+                       "isotonic on the current corpus and pushes a new `calibration.json`. "
+                       "Then close this issue.")
+          lines.append("")
+          lines.append("**Thresholds (from src/drift.py):**")
+          for k, v in r["thresholds"].items():
+              lines.append(f"- `{k}` = {v}")
+          print("\n".join(lines))
+          PY
+          )
+
+          # If a `drift` issue is already open, comment on it instead of opening another.
+          EXISTING=$(gh issue list --label drift --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "Existing drift issue #$EXISTING — adding comment."
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            echo "Opening new drift issue."
+            gh issue create \
+              --title "Calibration drift detected — $(date -u +%Y-%m-%d)" \
+              --label drift \
+              --body "$BODY"
+          fi
+
+      - name: Fail job if no baseline
+        if: steps.drift.outputs.exitcode == '2'
+        run: |
+          echo "::error::No data/calibration.json found. Run python -m src.calibration first."
+          exit 1
