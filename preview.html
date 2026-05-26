@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MTG v2 — retrieval engine preview</title>
+<style>
+  body {
+    font-family: Georgia, serif;
+    max-width: 760px;
+    margin: 32px auto;
+    padding: 0 20px;
+    color: #1a1a1a;
+    background: #fafaf7;
+  }
+  h1 {
+    font-family: sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-family: sans-serif;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 24px;
+  }
+  h2.section {
+    font-family: sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 28px 0 10px;
+  }
+
+  /* v2 regime banner — mirrors v1's .regime-banner shape */
+  .regime-banner {
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    border: 0.5px solid;
+  }
+  .regime-banner h2 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-family: sans-serif;
+  }
+  .regime-banner p {
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: sans-serif;
+  }
+
+  /* v2 has 6 k-means regime labels. Red-to-green gradient on the
+     contrarian axis: Euphoria (top of cycle, biggest forward risk)
+     reads red for caution. Panic (strongest forward setup) reads
+     green for buy signal. */
+  .regime-Euphoria { background: #FFEAEA; border-color: #E27575; color: #7A1818; }
+  .regime-Greed    { background: #FFEDDD; border-color: #E89C66; color: #8B3A0A; }
+  .regime-Neutral  { background: #F5F5F0; border-color: #CCCCCC; color: #555555; }
+  .regime-Anxiety  { background: #ECF7DA; border-color: #B5D484; color: #5A7A1A; }
+  .regime-Fear     { background: #DCF0D0; border-color: #7BB870; color: #1F6B1F; }
+  .regime-Panic    { background: #C8E8C0; border-color: #4FA060; color: #0F5018; }
+
+  /* horizontal 6-band scale legend */
+  .scale-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    margin: 8px 0 4px;
+  }
+  .scale-cell {
+    padding: 8px 4px;
+    text-align: center;
+    font-family: sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,0,0,0.04);
+  }
+  .scale-cell.active {
+    font-weight: 700;
+    border-width: 2px;
+    border-style: solid;
+  }
+  .scale-axis {
+    display: flex;
+    justify-content: space-between;
+    font-family: sans-serif;
+    font-size: 10px;
+    color: #888;
+    margin-top: 4px;
+  }
+
+  /* analog + base-rates blocks */
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    border: 1px solid #ebebe6;
+  }
+  .card h3 {
+    font-family: sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .card p, .card li, .card td {
+    font-family: sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  table.rates {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+  }
+  table.rates th, table.rates td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #f0efe9;
+  }
+  table.rates th {
+    font-family: sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  table.rates td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .withheld { color: #888; font-style: italic; }
+  .disclaimer {
+    font-family: sans-serif;
+    font-size: 11px;
+    color: #888;
+    margin-top: 18px;
+    line-height: 1.55;
+  }
+</style>
+</head>
+<body>
+  <h1>MTG v2 — retrieval engine preview</h1>
+  <p class="subtitle">Rendered directly from <code>data/today.json</code>. v2's own 6-band k-means regime labels; no LLM mapping.</p>
+
+  <!-- === Today's regime banner === -->
+  <div id="banner"></div>
+
+  <!-- === 6-band scale legend === -->
+  <h2 class="section">Regime scale (contrarian)</h2>
+  <div class="scale-strip" id="scaleStrip"></div>
+  <div class="scale-axis">
+    <span>Panic — strongest contrarian buy</span>
+    <span>Euphoria — biggest forward risk</span>
+  </div>
+
+  <!-- === Closest analog === -->
+  <h2 class="section">Closest historical analog</h2>
+  <div class="card" id="analogCard"></div>
+
+  <!-- === Forward-return base rates === -->
+  <h2 class="section">Forward base rates (from 20 nearest analogs)</h2>
+  <div class="card" id="ratesCard"></div>
+
+  <p class="disclaimer" id="disclaimer"></p>
+
+<script>
+// === Embedded snapshot from mtg-v2/data/today.json (as_of 2026-02-13) ===
+const today = {
+  as_of_date: "2026-02-13",
+  regime: { label: "Greed", cluster_id: 0, distance_to_centroid: 0.4388 },
+  query_features: { vix: 20.60, spx_ytd_pct: -0.33, spx_dd_from_52w: -2.04, macro_shock: 0 },
+  closest_analog: {
+    date: "2000-01-21",
+    distance: 0.00148,
+    features: { vix: 20.82, spx_ytd_pct: -0.95, spx_dd_from_52w: -1.90, macro_shock: 0 },
+    outcomes: {
+      fwd_ret_30d: -6.19, fwd_ret_90d: -0.47, fwd_ret_12m: -6.83,
+      max_dd_90d: -7.49, max_dd_180d: -7.49, vol_realized_30d: 23.67
+    }
+  },
+  base_rates: {
+    n_analogs: 20,
+    returns: {
+      fwd_ret_30d: { stats: { median: 1.77, p25: -4.19, p75: 3.32, min: -14.68, max: 7.32 },
+                     p_below: { "+0%": { p: 0.363, calibrated: true },
+                                "-5%": { p: 0.363, calibrated: true },
+                                "-10%": { p: 0.268, calibrated: true } } },
+      fwd_ret_90d: { stats: { median: 0.93, p25: -4.49, p75: 5.24, min: -12.53, max: 14.36 },
+                     p_below: { "+0%": { p: 0.352, calibrated: true },
+                                "-5%": { p: 0.263, calibrated: true },
+                                "-10%": { p: 0.245, calibrated: true } } },
+      fwd_ret_12m: { stats: { median: 6.03, p25: -6.70, p75: 15.51, min: -25.86, max: 31.52 },
+                     probability_status: "withheld_no_skill: OOS CV shows no skill at this horizon" }
+    },
+    drawdowns: {
+      max_dd_90d: { stats: { median: -4.40, p25: -7.86, p75: -1.52, min: -17.26, max: 0.00 },
+                    p_below: { "-10%": { p: 0.094, calibrated: true },
+                               "-20%": { p: 0.015, calibrated: true } } }
+    }
+  },
+  disclaimer: "Historical base rates from 20 nearest analogs. Not forecasts. Probabilities are isotonic-recalibrated against historical hit rates with time-series CV."
+};
+
+// v2 regime order, contrarian buy → contrarian sell
+const REGIMES = ["Panic", "Fear", "Anxiety", "Neutral", "Greed", "Euphoria"];
+
+// === Render headline banner ===
+const b = today.regime;
+const qf = today.query_features;
+document.getElementById('banner').innerHTML =
+  `<div class="regime-banner regime-${b.label}">
+     <h2>${b.label.toUpperCase()} regime &mdash; cluster ${b.cluster_id}, distance to centroid ${b.distance_to_centroid.toFixed(3)}</h2>
+     <p>As of ${today.as_of_date}. VIX ${qf.vix.toFixed(1)}, SPX YTD ${qf.spx_ytd_pct.toFixed(2)}%, drawdown from 52w high ${qf.spx_dd_from_52w.toFixed(2)}%, macro shock ${qf.macro_shock ? 'on' : 'off'}.</p>
+   </div>`;
+
+// === Render scale strip with active band highlighted ===
+document.getElementById('scaleStrip').innerHTML =
+  REGIMES.map(r => `<div class="scale-cell regime-${r}${r === b.label ? ' active' : ''}">${r}</div>`).join('');
+
+// === Render closest analog card ===
+const ca = today.closest_analog;
+document.getElementById('analogCard').innerHTML =
+  `<h3>${ca.date} (distance ${ca.distance.toFixed(4)})</h3>
+   <p>VIX ${ca.features.vix.toFixed(1)}, SPX YTD ${ca.features.spx_ytd_pct.toFixed(2)}%, drawdown ${ca.features.spx_dd_from_52w.toFixed(2)}%.</p>
+   <p style="margin-top:8px;">Forward outcomes from that date:
+      30d ${ca.outcomes.fwd_ret_30d.toFixed(2)}%,
+      90d ${ca.outcomes.fwd_ret_90d.toFixed(2)}%,
+      12m ${ca.outcomes.fwd_ret_12m.toFixed(2)}%,
+      max DD 90d ${ca.outcomes.max_dd_90d.toFixed(2)}%.</p>`;
+
+// === Render base-rates table ===
+function pct(p) { return p == null ? '—' : (p * 100).toFixed(1) + '%'; }
+function num(n) { return n == null ? '—' : n.toFixed(2) + '%'; }
+
+const br = today.base_rates;
+const rows = [];
+function row(label, stats, p_below, status) {
+  if (status) {
+    rows.push(`<tr><td>${label}</td><td colspan="5" class="withheld">${status}</td></tr>`);
+    return;
+  }
+  rows.push(
+    `<tr><td>${label}</td>
+         <td class="num">${num(stats.median)}</td>
+         <td class="num">${num(stats.p25)} → ${num(stats.p75)}</td>
+         <td class="num">${num(stats.min)} → ${num(stats.max)}</td>
+         <td class="num">${pct(p_below['+0%']?.p)}</td>
+         <td class="num">${pct(p_below['-10%']?.p)}</td></tr>`
+  );
+}
+row('Forward 30d return', br.returns.fwd_ret_30d.stats, br.returns.fwd_ret_30d.p_below);
+row('Forward 90d return', br.returns.fwd_ret_90d.stats, br.returns.fwd_ret_90d.p_below);
+row('Forward 12m return', null, null, br.returns.fwd_ret_12m.probability_status);
+row('Max drawdown over 90d', br.drawdowns.max_dd_90d.stats, br.drawdowns.max_dd_90d.p_below);
+
+document.getElementById('ratesCard').innerHTML =
+  `<table class="rates">
+     <thead><tr>
+       <th>Outcome</th><th>Median</th><th>IQR (p25–p75)</th><th>Min → Max</th><th>P(loss)</th><th>P(&lt;-10%)</th>
+     </tr></thead>
+     <tbody>${rows.join('')}</tbody>
+   </table>`;
+
+document.getElementById('disclaimer').textContent = today.disclaimer;
+</script>
+</body>
+</html>

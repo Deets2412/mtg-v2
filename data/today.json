@@ -1,0 +1,251 @@
+{
+  "schema_version": "v2.1",
+  "as_of_date": "2026-02-13",
+  "query_features": {
+    "vix": 20.600000381469727,
+    "spx_ytd_pct": -0.32514966559868963,
+    "spx_dd_from_52w": -2.0409562632638156,
+    "macro_shock": 0.0
+  },
+  "regime": {
+    "label": "Greed",
+    "cluster_id": 0,
+    "distance_to_centroid": 0.43883146062890155
+  },
+  "closest_analog": {
+    "date": "2000-01-21",
+    "distance": 0.0014774733242315374,
+    "features": {
+      "vix": 20.81999969482422,
+      "spx_ytd_pct": -0.9524323216142827,
+      "spx_dd_from_52w": -1.8982484021397017,
+      "macro_shock": 0.0
+    },
+    "outcomes": {
+      "fwd_ret_30d": -6.187901864397583,
+      "fwd_ret_90d": -0.47316051218107,
+      "fwd_ret_12m": -6.831045813547032,
+      "max_dd_90d": -7.4929234263193205,
+      "max_dd_180d": -7.4929234263193205,
+      "vol_realized_30d": 23.674065081665027
+    }
+  },
+  "base_rates": {
+    "n_analogs": 20,
+    "disclaimer": "Historical base rates from 20 nearest analogs. Not forecasts.",
+    "returns": {
+      "fwd_ret_30d": {
+        "stats": {
+          "n": 20,
+          "median": 1.7715468649438737,
+          "p10": -7.689755552764822,
+          "p25": -4.194006017926158,
+          "p75": 3.31517335485757,
+          "p90": 4.71114434861996,
+          "min": -14.682866137754791,
+          "max": 7.318316000564851,
+          "mean": -0.6714049507450642
+        },
+        "p_below": {
+          "+0%": {
+            "n": 20,
+            "k": 7,
+            "p": 0.3629103815439219,
+            "p_raw": 0.35,
+            "calibrated": true
+          },
+          "-5%": {
+            "n": 20,
+            "k": 5,
+            "p": 0.3629103815439219,
+            "p_raw": 0.25,
+            "calibrated": true
+          },
+          "-10%": {
+            "n": 20,
+            "k": 2,
+            "p": 0.2682926829268293,
+            "p_raw": 0.1,
+            "calibrated": true
+          }
+        }
+      },
+      "fwd_ret_90d": {
+        "stats": {
+          "n": 20,
+          "median": 0.9257389891129009,
+          "p10": -7.88263076174938,
+          "p25": -4.4924847596000905,
+          "p75": 5.238568486681783,
+          "p90": 8.30443274762463,
+          "min": -12.52625709066436,
+          "max": 14.355078803763766,
+          "mean": 0.896284313930984
+        },
+        "p_below": {
+          "+0%": {
+            "n": 20,
+            "k": 8,
+            "p": 0.35247524752475246,
+            "p_raw": 0.4,
+            "calibrated": true
+          },
+          "-5%": {
+            "n": 20,
+            "k": 4,
+            "p": 0.2625482625482625,
+            "p_raw": 0.2,
+            "calibrated": true
+          },
+          "-10%": {
+            "n": 20,
+            "k": 1,
+            "p": 0.24489795918367346,
+            "p_raw": 0.05,
+            "calibrated": true
+          }
+        }
+      },
+      "fwd_ret_12m": {
+        "stats": {
+          "n": 19,
+          "median": 6.034898353790763,
+          "p10": -20.167263770746334,
+          "p25": -6.696492493916489,
+          "p75": 15.508918029603358,
+          "p90": 27.295614166949573,
+          "min": -25.856925822478637,
+          "max": 31.522567806794257,
+          "mean": 4.655804027552724
+        },
+        "probability_status": "withheld_no_skill: out-of-sample CV showed v2 cannot predict this horizon better than climatology"
+      }
+    },
+    "drawdowns": {
+      "max_dd_90d": {
+        "stats": {
+          "n": 20,
+          "median": -4.402439444045048,
+          "p10": -12.325433970278965,
+          "p25": -7.858506644586381,
+          "p75": -1.5186814353214144,
+          "p90": -0.1430938941256219,
+          "min": -17.258955869627922,
+          "max": 0.0,
+          "mean": -5.656822525998038
+        },
+        "p_below": {
+          "-10%": {
+            "n": 20,
+            "k": 4,
+            "p": 0.09411764705882353,
+            "p_raw": 0.2,
+            "calibrated": true
+          },
+          "-20%": {
+            "n": 20,
+            "k": 0,
+            "p": 0.014840989399293287,
+            "p_raw": 0.0,
+            "calibrated": true
+          },
+          "-30%": {
+            "n": 20,
+            "k": 0,
+            "p": 0.014840989399293287,
+            "p_raw": 0.0,
+            "calibrated": true
+          }
+        }
+      },
+      "max_dd_180d": {
+        "stats": {
+          "n": 20,
+          "median": -7.240188500700046,
+          "p10": -17.26246183260021,
+          "p25": -14.798663305615325,
+          "p75": -2.6499044252693422,
+          "p90": -1.3506466251468763,
+          "min": -21.297562183147168,
+          "max": 0.0,
+          "mean": -8.434408091984203
+        },
+        "p_below": {
+          "-10%": {
+            "n": 20,
+            "k": 7,
+            "p": 0.35
+          },
+          "-20%": {
+            "n": 20,
+            "k": 1,
+            "p": 0.05
+          },
+          "-30%": {
+            "n": 20,
+            "k": 0,
+            "p": 0.0
+          }
+        }
+      }
+    },
+    "vol": {
+      "vol_realized_30d": {
+        "stats": {
+          "n": 20,
+          "median": 15.092907736133263,
+          "p10": 8.97357673390497,
+          "p25": 11.366563981128888,
+          "p75": 20.23317684030551,
+          "p90": 23.997389880467715,
+          "min": 7.570009618154275,
+          "max": 38.281678011934225,
+          "mean": 16.505858605388323
+        }
+      }
+    }
+  },
+  "calibration": {
+    "fit_at": "2026-05-17T00:07:08.699976+00:00",
+    "fit_params": {
+      "k": 20,
+      "embargo_days": 90,
+      "dedup_days": 30
+    },
+    "n_pairs": 6680,
+    "method": "isotonic regression, time-series 5-fold CV (chronological, no look-ahead)",
+    "per_prediction_out_of_sample": {
+      "fwd_ret_30d": {
+        "label": "P(loss 30d)",
+        "brier_skill_score": -0.019914854850672903,
+        "expected_calibration_error": 0.025347630781247788,
+        "n_oos_pairs": 1336,
+        "climatology": 0.3658682634730539
+      },
+      "fwd_ret_90d": {
+        "label": "P(loss 90d)",
+        "brier_skill_score": -0.05895649248676049,
+        "expected_calibration_error": 0.11106943324833604,
+        "n_oos_pairs": 1336,
+        "climatology": 0.3
+      },
+      "fwd_ret_12m": {
+        "label": "P(loss 12m)",
+        "brier_skill_score": -0.18111328111881742,
+        "expected_calibration_error": 0.17065702000936586,
+        "n_oos_pairs": 1336,
+        "climatology": 0.2059880239520958
+      },
+      "max_dd_90d": {
+        "label": "P(>20% DD in 90d)",
+        "brier_skill_score": -0.013792559713194041,
+        "expected_calibration_error": 0.019766249702253037,
+        "n_oos_pairs": 1336,
+        "climatology": 0.02694610778443114
+      }
+    },
+    "interpretation": "Probabilities for fwd_ret_30d, fwd_ret_90d, and max_dd_90d are out-of-sample calibrated. Brier skill score near 0 means tied with climatology (not better, not worse). Low ECE means the displayed probability matches the empirical hit rate. fwd_ret_12m probabilities are withheld \u2014 even after calibration they fail to beat climatology out-of-sample."
+  },
+  "k": 20,
+  "disclaimer": "Historical base rates from 20 nearest analogs. Not forecasts. Probabilities are isotonic-recalibrated against historical hit rates with time-series CV (see `calibration` block for per-prediction out-of-sample skill)."
+}

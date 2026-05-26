@@ -1,0 +1,143 @@
+{
+  "k": 6,
+  "labels_in_stress_order": [
+    "Panic",
+    "Fear",
+    "Anxiety",
+    "Neutral",
+    "Greed",
+    "Euphoria"
+  ],
+  "feature_cols": [
+    "vix",
+    "spx_ytd_pct",
+    "spx_dd_from_52w",
+    "macro_shock"
+  ],
+  "distance_weights": {
+    "vix": 2.0,
+    "spx_dd_from_52w": 1.5,
+    "macro_shock": 1.5,
+    "spx_ytd_pct": 0.5
+  },
+  "centroids": [
+    [
+      0.1786280888927871,
+      0.18370513500316443,
+      0.502247707832549,
+      -0.15909715436984131
+    ],
+    [
+      3.4058262781755535,
+      -0.7244833193676479,
+      -3.047838412181963,
+      -0.1590971543698414
+    ],
+    [
+      4.311067500917586,
+      -0.49592837692654285,
+      -1.6129996112967926,
+      14.140744106713543
+    ],
+    [
+      -1.4664393305485943,
+      0.16380037797062286,
+      0.797640101007775,
+      -0.15909715436984134
+    ],
+    [
+      8.137592041264275,
+      -1.3130542979820217,
+      -6.3906803728306025,
+      -0.15909715436984134
+    ],
+    [
+      1.400220538571022,
+      -0.34182183559162427,
+      -1.2131881164230243,
+      -0.15909715436984131
+    ]
+  ],
+  "id_to_label": {
+    "2": "Panic",
+    "4": "Fear",
+    "1": "Anxiety",
+    "5": "Neutral",
+    "0": "Greed",
+    "3": "Euphoria"
+  },
+  "cluster_summary": [
+    {
+      "cluster_id": 2,
+      "label": "Panic",
+      "stress_score": 20.188793313159557,
+      "n_days": 101,
+      "pct_of_corpus": 1.1125798634060367,
+      "vix_median": 32.79999923706055,
+      "spx_ytd_pct_median": -5.490839296601601,
+      "spx_dd_from_52w_median": -11.151110830527466,
+      "macro_shock_rate": 1.0
+    },
+    {
+      "cluster_id": 4,
+      "label": "Fear",
+      "stress_score": 14.697438834220543,
+      "n_days": 141,
+      "pct_of_corpus": 1.5532055518836747,
+      "vix_median": 47.27000045776367,
+      "spx_ytd_pct_median": -23.49538479758212,
+      "spx_dd_from_52w_median": -41.388814720101706,
+      "macro_shock_rate": 0.0
+    },
+    {
+      "cluster_id": 1,
+      "label": "Anxiety",
+      "stress_score": 6.475688365829587,
+      "n_days": 586,
+      "pct_of_corpus": 6.4551663361974,
+      "vix_median": 31.940000534057617,
+      "spx_ytd_pct_median": -11.796981847675092,
+      "spx_dd_from_52w_median": -22.87503860546238,
+      "macro_shock_rate": 0.0
+    },
+    {
+      "cluster_id": 5,
+      "label": "Neutral",
+      "stress_score": 2.539766959522111,
+      "n_days": 1464,
+      "pct_of_corpus": 16.12690019828156,
+      "vix_median": 24.600000381469727,
+      "spx_ytd_pct_median": -4.234123829096692,
+      "spx_dd_from_52w_median": -12.078628728687065,
+      "macro_shock_rate": 0.0
+    },
+    {
+      "cluster_id": 0,
+      "label": "Greed",
+      "stress_score": -0.5286430570603943,
+      "n_days": 2616,
+      "pct_of_corpus": 28.816920026437543,
+      "vix_median": 19.700000762939453,
+      "spx_ytd_pct_median": 6.694074531559579,
+      "spx_dd_from_52w_median": -2.723672772287827,
+      "macro_shock_rate": 0.0
+    },
+    {
+      "cluster_id": 3,
+      "label": "Euphoria",
+      "stress_score": -2.4641266804188664,
+      "n_days": 4170,
+      "pct_of_corpus": 45.93522802379379,
+      "vix_median": 13.649999618530273,
+      "spx_ytd_pct_median": 5.524018930318986,
+      "spx_dd_from_52w_median": -0.8886944756066995,
+      "macro_shock_rate": 0.0
+    }
+  ],
+  "random_state": 42,
+  "fitted_on_n_days": 9078,
+  "fitted_on_date_range": [
+    "1990-01-29",
+    "2026-02-13"
+  ]
+}

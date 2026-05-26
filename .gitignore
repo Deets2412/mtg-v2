@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data — never commit. Rebuild via `python -m src.ingest`.
+data/*.parquet
+data/*.csv
+!data/.gitkeep
+
+# IDE / tooling
+.vscode/
+.idea/
+.DS_Store
+.claude/
+
+# Logs
+*.log
+data/*.log
+
+# Local archives / backups — never commit
+*.tar.gz
+*.zip

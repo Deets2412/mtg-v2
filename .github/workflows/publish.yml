@@ -1,0 +1,101 @@
+# Daily MTG v2 publish job.
+#
+# Runs on GitHub-hosted runners — no local PC required. Re-ingests the
+# corpus from yfinance, runs retrieval + calibration, writes
+# data/today.json, and commits it back to this repo so v1 (on Railway)
+# can fetch it over HTTPS.
+#
+# Cadence: weekdays, 21:30 UTC (~30 min after US market close). yfinance
+# returns end-of-day bars; running this any earlier risks missing the
+# day's print.
+#
+# Manual trigger also available via the Actions tab ("Run workflow").
+
+name: publish-today
+
+on:
+  schedule:
+    # 21:30 UTC Mon-Fri. Cron is always UTC on GitHub Actions.
+    # During US DST (Mar-Nov) this is 17:30 ET, 30min after close.
+    # During US standard time, this is 16:30 ET, 30min after close.
+    - cron: '30 21 * * 1-5'
+  workflow_dispatch: {}
+
+# Needed so the action can push the regenerated today.json back to the repo.
+permissions:
+  contents: write
+
+concurrency:
+  # If a manual run is triggered while the cron is mid-flight, cancel the
+  # earlier one — we only ever want one publish in flight.
+  group: publish-today
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        # Skip jupyter — it's in requirements.txt for local exploration only
+        # and pulls in ~80MB of stuff we don't need on a runner.
+        run: |
+          python -m pip install --upgrade pip
+          grep -v '^jupyter' requirements.txt > requirements.ci.txt
+          pip install -r requirements.ci.txt
+
+      - name: Ingest fresh market data (rebuild corpus)
+        # yfinance pulls VIX + SPX since 1990. Regenerates
+        # data/historical_corpus.parquet. ~30s.
+        run: python -m src.ingest
+
+      - name: Publish today's snapshot
+        env:
+          # If these secrets are set, publish.py sends a Resend email.
+          # If not set, email step is skipped (see email_publish.py).
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          REPORT_EMAIL_FROM: ${{ secrets.REPORT_EMAIL_FROM }}
+          REPORT_EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+          REPORT_EMAIL_BCC: ${{ secrets.REPORT_EMAIL_BCC }}
+        run: python -m src.publish
+
+      - name: Optional — upload to Supabase Storage
+        # Only runs if both secrets are set. Lets you flip transport from
+        # "raw.githubusercontent.com" to a Supabase bucket without
+        # touching the workflow. v1 reads MTG_V2_TODAY_URL.
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_KEY != '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET || 'mtg-v2' }}
+        run: |
+          curl -fsS -X POST \
+            "$SUPABASE_URL/storage/v1/object/$SUPABASE_BUCKET/today.json?upsert=true" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            --data-binary @data/today.json
+
+      - name: Commit today.json back to repo
+        # If today.json is byte-identical to last run, skip the commit so
+        # the repo log isn't full of no-op commits (e.g. weekends, holidays,
+        # or runs where yfinance returned stale data).
+        run: |
+          git config user.name  "mtg-v2-bot"
+          git config user.email "mtg-v2-bot@users.noreply.github.com"
+          git add data/today.json data/regime_model.json data/encoder_params.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "publish: today.json $(date -u +%Y-%m-%d)"
+            git push
+          fi
