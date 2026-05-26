@@ -11,6 +11,9 @@ data/*.parquet
 data/*.csv
 !data/.gitkeep
 
+# v3 probe artifact — regenerable, large
+data/v3_probe_cv.json
+
 # IDE / tooling
 .vscode/
 .idea/
