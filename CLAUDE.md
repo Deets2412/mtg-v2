@@ -111,7 +111,7 @@ breached (skill < -0.25 or ECE > 0.20), opens a GitHub Issue labeled
 - ~~Calibration backtest~~ → **shipped in Sprint 2.5** (`src/backtest.py` + `src/calibration.py`)
 - Daily delta reporting → v3
 - Regime-conditional or recency-weighted retrieval → v3
-- Cross-asset features (rates, FX, credit) → v3
+- Cross-asset features (rates, FX, credit) → **probed and killed 2026-05-26.** Equal-weight 8-feature encoder (v2 base + 2y10y slope + BAA-AAA + 90d credit change + DXY) degraded OOS Brier skill on every horizon; three of four breached the >0.03 kill threshold. ECE worsened on every horizon. Full write-up + reproducible probe code on branch `v3-probe`, see `docs/v3-probe-results.md`. Possible next probes: learned weights on same 8 features, or different features entirely (term premium, put/call, % above 200dma). Not pursuing for now.
 - **Fear & Greed reconstruction** from sub-ingredients (SPX vs 125dMA, VIX vs 50dMA, 52w highs/lows, put/call ratio, HY-OAS, etc.) → v3. CNN's published series only goes back ~1y, so the 5th input has to be rebuilt before it can rejoin the encoder. If 4-input smell tests fail, this gets promoted to non-negotiable.
 
 ## Smell tests (must pass before swap-in)
