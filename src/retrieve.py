@@ -150,6 +150,15 @@ def retrieve(
     mask = (corpus.index >= query_ts - window) & (corpus.index <= query_ts + window)
     dists[mask] = np.inf
 
+    # Mask out candidates without complete near-term forward outcomes. These
+    # are the trailing ~63 trading days where fwd_ret_90d hasn't realised
+    # yet. They're valid as query rows but not as analogs — base_rates would
+    # NaN out otherwise.
+    no_outcomes = (
+        corpus["fwd_ret_30d"].isna() | corpus["fwd_ret_90d"].isna()
+    ).to_numpy()
+    dists[no_outcomes] = np.inf
+
     if dedup_episode_days > 0:
         top_k_idx = topk_episode_dedup(
             dists, corpus.index.to_numpy(), k, dedup_episode_days

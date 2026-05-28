@@ -178,11 +178,11 @@ def build_corpus() -> pd.DataFrame:
     if before - len(df):
         print(f"  Dropped {before - len(df)} rows missing encoder features")
 
-    # Drop rows missing 30d/90d forward outcomes (last ~3 months).
-    # Keep rows where only 12m is NaN — they're still useful for short-horizon analogs.
-    before = len(df)
-    df = df.dropna(subset=["fwd_ret_30d", "fwd_ret_90d"])
-    print(f"  Dropped {before - len(df)} rows missing near-term forward outcomes")
+    # KEEP rows missing forward outcomes (last ~3 months). They can't serve
+    # as historical analogs — we don't know their future yet — but they're
+    # valid QUERY rows: today's market state is here even though today's
+    # 90-day forward return obviously hasn't happened. retrieve.py masks
+    # these out of the candidate pool; publish.py picks one as the query.
 
     df.to_parquet(CORPUS_PATH)
     print(f"\nWrote {len(df):,} rows -> {CORPUS_PATH}")
