@@ -173,6 +173,48 @@ def _round_pct_words(p: float | None) -> str:
     return f"the large majority ({pct}%)"
 
 
+def _reflection_html(reflect: dict | None) -> str:
+    """
+    A small highlighted strip recapping what the gauge said 3 months ago and
+    how it landed, in a single tight line. Empty if reflection isn't available
+    (cold start, or realised 90d return isn't in yet).
+
+    The actual return is the close-to-close S&P 500 return from reflect_ts to
+    as_of_ts, computed from yfinance dailies. No rounding beyond display.
+    """
+    if not reflect:
+        return ""
+
+    reflect_date = _human_date(reflect["date"])
+    regime = reflect["regime"]
+    rc = REGIME_COLORS.get(regime, REGIME_COLORS["Neutral"])
+    pred = reflect.get("predicted_90d", {})
+    p25, p75 = pred.get("p25"), pred.get("p75")
+    actual = reflect.get("actual_90d")
+
+    def _fmt(v: float | None) -> str:
+        return f"{v:+.1f}%" if v is not None else "n/a"
+
+    parts = [
+        f'<strong>{_esc(reflect_date)}</strong>: '
+        f'<strong style="color:{rc["text"]};">{_esc(regime)}</strong>.'
+    ]
+    if p25 is not None and p75 is not None:
+        parts.append(f"History said <strong>{_fmt(p25)}</strong> to <strong>{_fmt(p75)}</strong>;")
+    if actual is not None:
+        parts.append(f"actually <strong>{_fmt(actual)}</strong>.")
+
+    body = " ".join(parts)
+
+    return f"""
+<tr><td style="padding:0 28px 14px 28px;">
+<div style="background:#faf8f2;border:1px solid #ece6d4;border-left:4px solid {rc['border']};border-radius:4px;padding:10px 16px;font-size:13px;color:#444;line-height:1.55;">
+<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1.3px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin-bottom:3px;">Looking back &middot; 3 months ago</div>
+{body}
+</div>
+</td></tr>"""
+
+
 def render_html(summary: dict) -> str:
     """
     Render today.json into a CLIENT-FRIENDLY HTML email.
@@ -191,6 +233,7 @@ def render_html(summary: dict) -> str:
     r = summary["regime"]
     c = summary["closest_analog"]
     br = summary["base_rates"]
+    reflection_html = _reflection_html(summary.get("reflection"))
 
     rc = REGIME_COLORS.get(r["label"], REGIME_COLORS["Neutral"])
     as_of_human = _human_date(summary["as_of_date"])
@@ -304,7 +347,7 @@ def render_html(summary: dict) -> str:
 <div style="font-size:14px;color:{rc['text']};opacity:0.85;font-style:italic;">{_esc(regime_blurb)}</div>
 </div>
 </td></tr>
-
+{reflection_html}
 <tr><td style="padding:0 28px 16px 28px;font-size:14px;color:#333;line-height:1.55;">
 {state_phrase}
 </td></tr>

@@ -41,7 +41,12 @@ CALIBRATION_PATH = DATA_DIR / "calibration.json"
 TRUSTED_PROB_COLS = {"fwd_ret_30d", "fwd_ret_90d", "max_dd_90d"}
 UNTRUSTED_PROB_COLS = {"fwd_ret_12m"}
 
-SCHEMA_VERSION = "v2.1"  # bumped: calibrated probabilities + cv_evaluation block
+SCHEMA_VERSION = "v2.2"  # bumped: added `reflection` block (3-month look-back)
+
+# Trading days in a "3-month forward" window. Matches ingest.compute_forward_outcomes
+# which sets fwd_ret_90d = spx.shift(-63). We pick the reflection date by walking
+# back 63 trading days so the realised fwd_ret_90d at that date lands on today.
+REFLECTION_TRADING_DAYS = 63
 
 
 def _ensure_models(corpus: pd.DataFrame) -> None:
@@ -103,6 +108,65 @@ def _apply_calibration_to_base_rates(base_rates: dict, calibration: dict | None)
     return base_rates
 
 
+def _build_reflection(
+    corpus: pd.DataFrame,
+    as_of_ts: pd.Timestamp,
+    k: int,
+    calibration: dict | None,
+) -> dict | None:
+    """
+    Re-run the gauge for the date REFLECTION_TRADING_DAYS back in the corpus,
+    then look up what the realised fwd_ret_90d turned out to be (which lands
+    on today). Returns None if the corpus isn't deep enough or the realised
+    return isn't available yet.
+    """
+    pos = corpus.index.get_loc(as_of_ts)
+    if pos < REFLECTION_TRADING_DAYS:
+        return None
+    reflect_ts = corpus.index[pos - REFLECTION_TRADING_DAYS]
+    reflect_row = corpus.loc[reflect_ts]
+
+    actual_90d = reflect_row.get("fwd_ret_90d")
+    if pd.isna(actual_90d):
+        return None  # Realised return not in yet; nothing to reflect on.
+
+    reflect_features = {c: float(reflect_row[c]) for c in FEATURE_COLS}
+    reflect_regime = label_one(reflect_features)
+    reflect_analogs, _ = retrieve(reflect_ts, k=k)
+    reflect_base = base_rates_from_analogs(reflect_analogs)
+    reflect_base = _apply_calibration_to_base_rates(reflect_base, calibration)
+
+    ret90 = reflect_base["returns"]["fwd_ret_90d"]
+    stats = ret90["stats"]
+    p_loss = (ret90.get("p_below", {}).get("+0%") or {}).get("p")
+
+    p25, p75 = stats.get("p25"), stats.get("p75")
+    actual = float(actual_90d)
+    if p25 is not None and p75 is not None:
+        if actual < p25:
+            verdict = "below the typical range"
+        elif actual > p75:
+            verdict = "above the typical range"
+        else:
+            verdict = "inside the typical range"
+    else:
+        verdict = None
+
+    return {
+        "date": str(reflect_ts.date()),
+        "regime": reflect_regime["label"],
+        "vix": reflect_features["vix"],
+        "predicted_90d": {
+            "median": stats.get("median"),
+            "p25": p25,
+            "p75": p75,
+            "p_loss": p_loss,
+        },
+        "actual_90d": actual,
+        "verdict": verdict,
+    }
+
+
 def publish(as_of: str | pd.Timestamp | None = None, k: int = 20) -> dict:
     corpus = pd.read_parquet(CORPUS_PATH)
     _ensure_models(corpus)
@@ -141,6 +205,11 @@ def publish(as_of: str | pd.Timestamp | None = None, k: int = 20) -> dict:
         },
     }
 
+    # Reflection: what the gauge said 3 months ago, and what actually happened.
+    # The reflection date is REFLECTION_TRADING_DAYS back in the corpus so its
+    # realised fwd_ret_90d window lands exactly on today.
+    reflection_payload = _build_reflection(corpus, as_of_ts, k, calibration)
+
     # Self-describing credibility statement — surface the out-of-sample
     # CV evaluation so downstream consumers (v1's LLM, email template, any
     # human reader) can see exactly how well-calibrated each probability is.
@@ -178,6 +247,7 @@ def publish(as_of: str | pd.Timestamp | None = None, k: int = 20) -> dict:
         "query_features": query_features,
         "regime": regime,
         "closest_analog": closest_payload,
+        "reflection": reflection_payload,
         "base_rates": base_rates,
         "calibration": calibration_meta,
         "k": k,

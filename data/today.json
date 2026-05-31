@@ -1,5 +1,5 @@
 {
-  "schema_version": "v2.1",
+  "schema_version": "v2.2",
   "as_of_date": "2026-05-29",
   "query_features": {
     "vix": 15.319999694824219,
@@ -29,6 +29,19 @@
       "max_dd_180d": -0.3165152978388819,
       "vol_realized_30d": 5.912565600726538
     }
+  },
+  "reflection": {
+    "date": "2026-02-27",
+    "regime": "Greed",
+    "vix": 19.860000610351562,
+    "predicted_90d": {
+      "median": 1.6629300435145433,
+      "p25": -4.530674887113879,
+      "p75": 4.992218260961972,
+      "p_loss": 0.35375494071146246
+    },
+    "actual_90d": 10.193231859349838,
+    "verdict": "above the typical range"
   },
   "base_rates": {
     "n_analogs": 20,
